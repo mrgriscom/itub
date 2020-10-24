@@ -1,0 +1,27 @@
+<style>
+
+  #temp {
+  font-family: sans-serif;
+  font-size: 160pt;
+  text-align: center;
+  }
+  
+  input {
+  width: 100%;
+  font-size: 200pt;
+  }
+  
+</style>
+
+<div id="temp">{{ temp }}&#xb0;C</div>
+
+<form method="post">
+  <input type="hidden" name="action" value="on">
+  <input type="submit" value="ON">
+</form>
+<form method="post">
+  <input type="hidden" name="action" value="off">
+  <input type="submit" value="OFF">
+</form>
+
+{{ temp_at }}
