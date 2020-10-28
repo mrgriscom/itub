@@ -26,6 +26,7 @@ SSL_CONFIG = {
     'keyfile': os.path.join(os.path.dirname(__file__), 'private/ssl/selfsigned.key'),
 }
 
+USE_TORNADO_CALLBACKS = False
 
 try:
     from localsettings import *

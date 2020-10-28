@@ -77,7 +77,11 @@ class Controller(object):
             self.cur_temp = temp
             self.temp_as_of = datetime.now()
             self.update_state()
-        IOLoop.instance().add_callback(_)
+        if settings.USE_TORNADO_CALLBACKS:
+            IOLoop.instance().add_callback(_)
+        else:
+            # sometimes the proper callback method doesn't seem to work?
+            _()
 
     def update_state(self):
         if self.setpoint == SETPOINT_ALWAYS_OFF:
