@@ -16,15 +16,6 @@
 
 <div id="temp">&#xb0;C</div>
 
-<form method="post">
-  <input type="hidden" name="action" value="on">
-  <input type="submit" value="ON">
-</form>
-<form method="post">
-  <input type="hidden" name="action" value="off">
-  <input type="submit" value="OFF">
-</form>
-
 
 -->
 
@@ -74,7 +65,13 @@ button {
   <div id="connectionstatus" style="color: red;"></div>
   <div id="ui">
 
+    <div>curtemp: <span style="font-weight: bold;" data-bind="text: temp"></span></div>
+    <div>heater: <span style="font-weight: bold;" data-bind="text: heater_on"></span></div>
+    <div>as of: <span style="font-weight: bold;" data-bind="text: temp_as_of"></span></div>
 
+    <select id="setpoint" data-bind="options: setpoints, optionsText: blah, value: setpoint, event: {change: setpointChanged}" />
+    
+<!--
     
 
   <div data-bind="visible: !current_playlist()" style="background-color: #fdd;">no playlist set -- output will cease after current content finishes!</div>
@@ -171,7 +168,7 @@ button {
   </div>
   
   <hr>
-  
+  -->
 </body>
 </html>
 

@@ -299,7 +299,7 @@ class WebsocketHandler(AuthenticationMixin, websocket.WebSocketHandler):
 
         action = data.get('action')
         if action == 'setpoint':
-            controller.new_setpoint(data['value'])
+            self.controller.new_setpoint(data['value'])
 
     def on_close(self):
         self.controller.unsubscribe(self)
