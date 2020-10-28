@@ -1,2 +1,6 @@
 *~
 *.pyc
+
+localsettings.py
+private/
+*.sqlite

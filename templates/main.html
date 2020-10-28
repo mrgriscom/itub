@@ -1,3 +1,4 @@
+<!--
 <style>
 
   #temp {
@@ -13,7 +14,7 @@
   
 </style>
 
-<div id="temp">{{ temp }}&#xb0;C</div>
+<div id="temp">&#xb0;C</div>
 
 <form method="post">
   <input type="hidden" name="action" value="on">
@@ -24,4 +25,153 @@
   <input type="submit" value="OFF">
 </form>
 
-{{ temp_at }}
+
+-->
+
+
+<html>
+<head>
+  <title>hot tub control</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/style/style.css">
+  <link rel="stylesheet" href="/script/jquery-ui-1.12.1/jquery-ui.css">
+
+  <script src="/script/jquery-3.3.1.js"></script>
+  <script src="/script/jquery-ui-1.12.1/jquery-ui.js"></script>
+  <script src="/script/jquery.ui.touch-punch.min.js"></script>
+  <script src="/script/knockout-3.4.2.debug.js"></script>
+  <script src="/script/underscore-min-1.6.0.js"></script>
+  <script src="/script/main.js"></script>
+
+  <script>
+
+{% autoescape None %}
+DATA = null;
+
+$(document).ready(init);
+
+  </script>
+</head>
+<body>
+  <style>
+
+body {
+  font-family: sans-serif;
+  margin: 15px;
+}
+
+button {
+  user-select: none;
+}
+
+.control {
+  margin-bottom: 5px;
+}
+
+  </style>
+
+  <div id="connectionstatus" style="color: red;"></div>
+  <div id="ui">
+
+
+    
+
+  <div data-bind="visible: !current_playlist()" style="background-color: #fdd;">no playlist set -- output will cease after current content finishes!</div>
+  <div data-bind="visible: current_playlist">currently playing: <span style="font-weight: bold;" data-bind="text: current_playlist"></span>, <span data-bind="text: default_duration"></span>m cycle time</div>
+
+  <div data-bind="foreach: playlists">
+    <div>
+      <button data-bind="click: play">play</button>
+      <span data-bind="text: name"></span> (<span data-bind="text: count"></span> items)
+    </div>
+  </div>
+
+  <h3>visualizations</h3>
+
+  <div data-bind="visible: !current_content()">nothing playing</div>
+  <div data-bind="visible: current_content">
+    <div>currently playing: <span style="font-weight: bold;" data-bind="text: current_content"></span></div>
+    <div>since <span data-bind="text: content_launch_time"></span></div>
+    <div data-bind="visible: current_timeout">
+      until <span data-bind="text: current_timeout"></span> (<span data-bind="text: time_remaining"></span> remaining)
+    </div>
+    <div data-bind="visible: !current_timeout()" style="background-color: #fdd;">playing indefinitely</div>
+    <div>aspect ratio: <span data-bind="text: aspect_ratio"></span></div>
+  </div>
+  
+  <div data-bind="foreach: contents">
+    <div>
+      <button data-bind="click: play">play</button>
+      <span data-bind="text: name"></span>
+      <span data-bind="visible: available" style="font-weight: bold; color: green;">&#x2713;</span>
+    </div>
+  </div>
+
+  <h3>placements</h3>
+
+  <div data-bind="foreach: placements">
+    <div>
+      <button data-bind="click: set">set</button>
+      <button data-bind="click: lock, visible: ix() != $root.locked_placement()">lock</button>
+      <span data-bind="visible: ix() == $root.locked_placement()" style="font-weight: bold;">[locked]</span>
+      <span data-bind="text: name"></span>
+      <span data-bind="visible: available" style="font-weight: bold; color: green;">&#x2713;</span>
+    </div>
+  </div>
+
+  <h3>auto-placement whitelist</h3>
+
+  <div data-bind="visible: locked_placement() != null" style="background-color: #fdd; margin-top: 1em;">
+    locked placement in effect: <span style="font-weight: bold;" data-bind="text: locked_placement_name"></span>
+    <br />
+    <button data-bind="click: $root.unlockPlacement">unlock</button>
+  </div>
+  
+  <div data-bind="foreach: placementModes">
+    <div>
+      <button data-bind="click: $root.setMode">whitelist</button>
+      <span data-bind="text: $data, style: {fontWeight: $data == $root.current_placement_mode() ? 'bold' : 'normal'}"></span>
+    </div>
+  </div>
+
+  <h3>effects</h3>
+
+  <div id="effects_controls">
+  </div>
+  
+  <h3>custom placement</h3>
+
+  <div>save this placement preset as <input id="saveas" type="text" placeholder="name"></input> <button id="saveplacement">save</button></div>
+  <br>
+
+  <div id="placement_controls">
+  </div>
+  
+  <h3>visualization controls</h3>
+
+  <div id="controls">
+  </div>
+  
+  <h3>audio controls</h3>
+
+  <div id="audio_controls">
+  </div>
+
+  <h3>global display</h3>
+
+  <div id="global_display">
+  </div>
+
+  <h3>quiet periods</h3>
+
+  <div id="quiet_controls">
+  </div>
+
+  </div>
+  
+  <hr>
+  
+</body>
+</html>
+
