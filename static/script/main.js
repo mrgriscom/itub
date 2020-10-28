@@ -7,6 +7,8 @@ function UIModel() {
     this.setpoints = ko.observableArray();
     this.temp_tol = ko.observable();
     this.const = null;
+
+    this.history = [];
     
     var model = this;
     this.setpointChanged = function(obj, event) {
@@ -19,17 +21,51 @@ function UIModel() {
 
     this.update = function(data) {
         if (data.constants) {
-            model.const = data.constants;
-            model.const.setpoints.unshift(model.const.setpoint_off);
-            model.const.setpoints.push(model.const.setpoint_max);
-            model.setpoints(model.const.setpoints);
-            model.temp_tol(model.const.tolerance);
+            this.const = data.constants;
+            this.const.setpoints.unshift(this.const.setpoint_off);
+            this.const.setpoints.push(this.const.setpoint_max);
+            this.setpoints(this.const.setpoints);
+            this.temp_tol(this.const.tolerance);
         }
 
-        model.setpoint(data.setpoint);
-        model.temp(data.cur_temp);
-        model.heater_on(data.heater_on);
-        model.temp_as_of(data.temp_as_of);
+        this.setpoint(data.setpoint);
+        this.temp(data.cur_temp);
+        this.heater_on(data.heater_on);
+        this.temp_as_of(data.temp_as_of);
+
+        if (data.history) {
+            _.each(data.history, function(e) {
+                model.add_historical_point(e);
+            });
+        } else {
+            this.add_historical_point([this.temp_as_of(), this.temp()]);
+            this.cull_history_for_window();
+        }
+        update_chart(this.history, this.const.hist_window);
+    }
+
+    this.add_historical_point = function(e) {
+        var cur = {x: new Date(e[0]), y: e[1]};
+        if (this.history.length > 0) {
+            var prev = this.history.slice(-1)[0];
+            if ((cur.x - prev.x) / 1000. > this.const.staleness) {
+                this.history.push(undefined);
+            }
+        }
+        this.history.push(cur);
+    }
+
+    this.cull_history_for_window = function() {
+        var end = this.history.slice(-1)[0].x;
+        var start = new Date(end - this.const.hist_window * 1000);
+        
+        while (this.history.length > 0) {
+            var first = this.history[0];
+            if (first !== undefined && first.x > start) {
+                break;
+            }
+            this.history.shift();
+        }
     }
     
     this.now = ko.observable(new Date());
@@ -54,6 +90,26 @@ function format_setpoint(n) {
     } else {
         return n.toFixed(1) + ' \xb0C';
     }
+}
+
+function update_chart(data, window) {
+    var end = data.slice(-1)[0].x;
+    var start = new Date(end - window * 1000);
+    
+    var chart = new Chartist.Line('.ct-chart', {series: [{data: data}]}, {
+        showPoint: false,
+        showLine: true,
+        axisX: {
+            type: Chartist.FixedScaleAxis,
+            // convert high/low from date back to int
+            high: end-0,
+            low: start-0,
+            divisor: 8,
+            labelInterpolationFnc: function(value) {
+                return moment(value).format('HH:mm');
+            },
+        },
+    });
 }
 
 function connect(model, mode) {

@@ -103,6 +103,13 @@ class Controller(object):
         relay_state = on ^ settings.RELAY_OPEN_STATE
         getattr(self.relay, 'on' if relay_state else 'off')()
 
+
+def init_db():
+    conn = sqlite3.connect(settings.TEMP_LOG, isolation_level=None)
+    cur = conn.cursor()
+    cur.execute('create table if not exists templog (timestamp text primary key, temp float)')        
+    return (conn, cur)
+
         
 RESTART_INTERVAL = timedelta(minutes=5)
 POLL_INTERVAL = 60.  # s
@@ -119,10 +126,6 @@ class TemperatureMonitor(threading.Thread):
         self.db = None
         
         self.up = True
-
-    def init_db(self):
-        self.db = sqlite3.connect(settings.TEMP_LOG, isolation_level=None).cursor()
-        self.db.execute('create table if not exists templog (timestamp text primary key, temp float)')        
         
     def interval_ok(self, interval):
         # cache this to a local variable for thread safety
@@ -150,7 +153,7 @@ class TemperatureMonitor(threading.Thread):
         pass
 
     def run(self):
-        self.init_db()
+        self.db = init_db()[1]
         
         self.init()
         while self.up:
@@ -297,6 +300,12 @@ class WebsocketHandler(AuthenticationMixin, websocket.WebSocketHandler):
         
     def open(self, *args):
         state = self.controller.get_state()
+
+        conn, cur = init_db()
+        cur.execute('select * from templog where timestamp > ? order by timestamp', (datetime.now() - settings.HISTORY_WINDOW,))
+        hist = cur.fetchall()
+        conn.close()
+
         state.update({
             'constants': {
                 'setpoint_off': SETPOINT_ALWAYS_OFF,
@@ -304,7 +313,9 @@ class WebsocketHandler(AuthenticationMixin, websocket.WebSocketHandler):
                 'setpoints': list(setpoints(settings.SETPOINT_MINMAX, settings.SETPOINT_STEP)),
                 'tolerance': settings.SETPOINT_TOLERANCE,
                 'staleness': settings.TEMP_STALENESS.total_seconds(),
+                'hist_window': settings.HISTORY_WINDOW.total_seconds(),
             },
+            'history': hist,
         })
         self.notify(state)
         self.controller.subscribe(self)
