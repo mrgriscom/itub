@@ -158,7 +158,7 @@ class SDRTempMonitor(TemperatureMonitor):
             logging.debug('bad json [%s]' % payload)
             return
 
-        if any(payload[k] != JSON_TEMPLATE[k] for k in JSON_TEMPLATE.keys()):
+        if any(payload[k] != DEVICE_TEMPLATE[k] for k in DEVICE_TEMPLATE.keys()):
             logging.debug('transmission from different device %s' % payload)
             return
 
