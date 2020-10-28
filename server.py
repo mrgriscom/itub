@@ -15,6 +15,7 @@ import threading
 from subprocess import Popen, PIPE
 import time
 import logging
+import settings
 
 SETPOINT_ALWAYS_OFF = 0
 SETPOINT_ALWAYS_ON = 99
@@ -189,14 +190,15 @@ class USBTempMonitor(TemperatureMonitor):
         if m:
             try:
                 temp = float(m.group(0)[:-1])
+                if temp == 0:
+                    # wire not connected
+                    temp = None
             except ValueError:
                 pass
-            if temp == 0:
-                # wire not connected
-                temp = None
         if temp is None:
             logging.debug('bad output [%s]' % stdout)
         else:
+            # TODO temperature might need calibration adjustment
             self.on_new_temp(temp)
         
         
@@ -244,8 +246,10 @@ if __name__ == "__main__":
         port = 8000
 
     ctrl = Controller()        
-    #tempmon = SDRTempMonitor(ctrl)
-    tempmon = USBTempMonitor(ctrl)
+    tempmon = {
+        'usb': USBTempMonitor,
+        'sdr': SDRTempMonitor,
+    }[settings.THERMOMETER](ctrl)
     tempmon.start()
         
     application = web.Application([
