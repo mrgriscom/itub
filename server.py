@@ -302,11 +302,10 @@ class WebsocketHandler(AuthenticationMixin, websocket.WebSocketHandler):
                 'setpoint_off': SETPOINT_ALWAYS_OFF,
                 'setpoint_max': SETPOINT_ALWAYS_ON,
                 'setpoints': list(setpoints(settings.SETPOINT_MINMAX, settings.SETPOINT_STEP)),
-                'tolerance': settings.SETPOINT_TOLERANCE
+                'tolerance': settings.SETPOINT_TOLERANCE,
+                'staleness': settings.TEMP_STALENESS.total_seconds(),
             },
         })
-
-        
         self.notify(state)
         self.controller.subscribe(self)
 

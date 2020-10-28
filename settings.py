@@ -1,11 +1,11 @@
 import os.path
-
+from datetime import timedelta
 
 
 THERMOMETER = 'sdr'
 #THERMOMETER = 'usb'
-
 TEMP_LOG = 'templog.sqlite'
+TEMP_STALENESS = timedelta(minutes=10)
 
 RELAY_PIN = 2
 RELAY_OPEN_STATE = True  # True for pin high, False for pin low

@@ -5,6 +5,7 @@ function UIModel() {
     this.temp_as_of = ko.observable();
     this.heater_on = ko.observable();
     this.setpoints = ko.observableArray();
+    this.temp_tol = ko.observable();
     this.const = null;
     
     var model = this;
@@ -22,6 +23,7 @@ function UIModel() {
             model.const.setpoints.unshift(model.const.setpoint_off);
             model.const.setpoints.push(model.const.setpoint_max);
             model.setpoints(model.const.setpoints);
+            model.temp_tol(model.const.tolerance);
         }
 
         model.setpoint(data.setpoint);
@@ -29,31 +31,19 @@ function UIModel() {
         model.heater_on(data.heater_on);
         model.temp_as_of(data.temp_as_of);
     }
-
-
-
     
     this.now = ko.observable(new Date());
     setInterval(function() {
 	    model.now(new Date());
     }, 1000);
-    this.time_remaining = ko.computed(function() {
-        /*
-	      var diff = Math.floor((model.current_timeout() - model.now()) / 1000.);
-	      if (diff < 0) {
-	      if (diff >= -1) {
-		  diff = 0;
-	      } else {
-		  return '(overdue)';
-	      }
-	      }
-          
-	      var m = Math.floor(diff / 60);
-	      var s = diff % 60;
-	      return m + 'm ' + s + 's';
-        */
+    this.temp_age = ko.computed(function() {
+        model.now();
+        var ts = moment(model.temp_as_of());
+        return ts.fromNow();
     });
-    
+    this.temp_stale = ko.computed(function() {
+        return model.temp_as_of() == null || (model.now() - new Date(model.temp_as_of())) / 1000. > model.const.staleness;
+    });
 }
 
 function format_setpoint(n) {
@@ -62,10 +52,9 @@ function format_setpoint(n) {
     } else if (n == 99) {
         return 'MAX';
     } else {
-        return n.toFixed(1) + '\xb0C';
+        return n.toFixed(1) + ' \xb0C';
     }
 }
-
 
 function connect(model, mode) {
     var secure = window.location.protocol.startsWith('https');
@@ -111,16 +100,5 @@ function _init(mode) {
     ko.applyBindings(model);
     connect(model, mode);
     MODEL = model;
-
-    /*
-      $('#setpoint').change(function() {
-      if (model.setpoint() == null) {
-      return;
-      }
-      
-      console.log({action: 'setpoint', value: model.setpoint()});
-      debugger;
-      });
-    */
 }
 
