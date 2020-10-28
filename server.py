@@ -81,19 +81,29 @@ class Controller(object):
         relay_state = on ^ RELAY_OPEN_STATE
         getattr(self.relay, 'on' if relay_state else 'off')()
 
+        
 RESTART_INTERVAL = timedelta(minutes=5)
+POLL_INTERVAL = 60.  # s
 class TemperatureMonitor(threading.Thread):
-    def __init__(self, controller, poll_interval=60.):
+    def __init__(self, controller, poll_interval=POLL_INTERVAL):
+        super(TemperatureMonitor, self).__init__()
+        
         self.controller = controller
-        self.poll_interval = timedelta(seconds=poll_interval*.9)
+        
+        self.target_poll_interval = timedelta(seconds=poll_interval)
+        self.min_poll_interval = timedelta(seconds=poll_interval*.9)
+        self.last_result = None
+        
         self.up = True
-        self.last_result = datetime.now()
 
+    def interval_ok(self, interval):
+        return self.controller.temp_as_of is None or datetime.now() - self.controller.temp_as_of > interval
+        
     def on_new_temp(self, temp):
         logging.debug('new temp from device %s' % temp)
         self.last_result = datetime.now()
-        
-        if self.controller.temp_as_of is not None and datetime.now() - self.controller.temp_as_of < self.poll_interval:
+
+        if not self.interval_ok(self.min_poll_interval):
             return
 
         # store in sqlite
@@ -105,7 +115,7 @@ class TemperatureMonitor(threading.Thread):
         self.cleanup()
 
     def init(self):
-        pass
+        self.last_result = datetime.now()
 
     def cleanup(self):
         pass
@@ -113,12 +123,11 @@ class TemperatureMonitor(threading.Thread):
     def run(self):
         self.init()
         while self.up:
-            if datetime.now() - self.controller.temp_as_of > RESTART_INTERVAL:
+            if datetime.now() - self.last_result > RESTART_INTERVAL:
                 logging.info('restarting temperature service due to lack of output')
                 self.cleanup()
                 time.sleep(5.)
                 self.init()
-                self.last_result = datetime.now()
             
             self.tick()
             time.sleep(.01)
@@ -128,6 +137,7 @@ DEVICE_TEMPLATE = {'id': 91}
 SDR_CMD = os.path.expanduser('~/rtl_433/build/src/rtl_433 -f 434040000 -F json -R 19')
 class SDRTempMonitor(TemperatureMonitor):
     def init(self):
+        super(SDRTempMonitor, self).init()
         # don't use shell as it can't be terminated easily
         self.process = Popen(SDR_CMD.split(), stdout=PIPE)
 
@@ -153,16 +163,41 @@ class SDRTempMonitor(TemperatureMonitor):
 
         self.on_new_temp(payload['temperature_C'])
 
-        
+
+USB_ID = '0c45:7401'
 USB_CMD = os.path.expanduser('~/usb-thermometer/pcsensor')
 class USBTempMonitor(TemperatureMonitor):
+    def cleanup(self):
+        import fcntl
+        USBDEVFS_RESET = 21780
+        try:
+            lsusb = Popen("lsusb | grep -i %s" % USB_ID, shell=True, stdout=PIPE).communicate()[0].strip().split()
+            bus = lsusb[1]
+            device = lsusb[3][:-1]
+            with open("/dev/bus/usb/%s/%s" % (bus, device), 'w', os.O_WRONLY) as f:
+                fcntl.ioctl(f, USBDEVFS_RESET, 0)
+        except Exception, e:
+            logging.debug('usb reset failed %s' % e)
+    
     def tick(self):
-        stdout, _ = Popen(USB_CMD, shell=True).communicate()
+        if not self.interval_ok(self.target_poll_interval):
+            return
+        
+        stdout, _ = Popen(USB_CMD, shell=True, stdout=PIPE).communicate()
+        temp = None
         m = re.search('[-+.0-9]+C', stdout)
         if m:
-            self.on_new_temp(float(m.group(0)[:-1]))
-
-
+            try:
+                temp = float(m.group(0)[:-1])
+            except ValueError:
+                pass
+            if temp == 0:
+                # wire not connected
+                temp = None
+        if temp is None:
+            logging.debug('bad output [%s]' % stdout)
+        else:
+            self.on_new_temp(temp)
         
         
 class MainHandler(web.RequestHandler):
@@ -192,13 +227,14 @@ class MainHandler(web.RequestHandler):
 
 if __name__ == "__main__":
 
-    try:
-        import gpiozero as io
-        relay = io.LED(2, initial_value=True)
-    except ImportError:
-        print 'NO GPIO'
-        relay = None
-        
+    # TODO buffering handler for file writers in case we get flooded with debug errors every tick
+    logging.basicConfig(
+        format='%(asctime)s %(levelname)-8s %(message)s',
+        level=logging.DEBUG,
+        datefmt='%Y-%m-%d %H:%M:%S',
+        stream=sys.stderr,
+    )
+    
     parser = OptionParser()
     (options, args) = parser.parse_args()
 
@@ -207,7 +243,9 @@ if __name__ == "__main__":
     except IndexError:
         port = 8000
 
-    tempmon = SDRTempThread()
+    ctrl = Controller()        
+    #tempmon = SDRTempMonitor(ctrl)
+    tempmon = USBTempMonitor(ctrl)
     tempmon.start()
         
     application = web.Application([
