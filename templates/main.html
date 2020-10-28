@@ -49,7 +49,7 @@ body {
     <div>
       <div style="font-size: 80%;"><span style="font-weight: bold;">CURRENT</span> (a/o <span data-bind="text: temp() ? temp_age() : '??'"></span>)</div>
       <div style="font-size: 64pt;" data-bind="style: {color: temp_stale() ? '#aaa' : 'black'}"><span data-bind="text: temp() != null ? temp().toFixed(1) : '??'"></span> &#xb0;C</div>
-      <div style="font-weight: bold;" data-bind="style: {color: heater_on() ? '#f00' : '#07e'}">HEATER <span data-bind="text: heater_on() ? 'ON' : 'OFF'"></span></div>
+      <div style="font-weight: bold;" data-bind="style: {color: heater_on() ? '#f00' : '#07e'}">HEATER <span data-bind="text: heater_on() ? 'ON &#x1f525;' : 'OFF &#x2744;&#xfe0f;'"></span></div>
     </div>
     
     <div class="ct-chart ct-minor-third"></div>
