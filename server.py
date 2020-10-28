@@ -89,7 +89,7 @@ class Controller(object):
             # when in doubt, activate heat
             heat = True
         else:
-            threshold = self.setpoint + (1 if self.heater_on else -1) * settings.SETPOINT_RANGE
+            threshold = self.setpoint + (1 if self.heater_on else -1) * settings.SETPOINT_TOLERANCE
             heat = self.cur_temp < threshold
         self.set_heater(heat)
         self.notify()
@@ -279,6 +279,13 @@ class MainHandler(AuthenticationMixin, web.RequestHandler):
     def get(self):
         self.render('main.html')
 
+def setpoints((_min, _max), step):
+    assert _max >= _min and step > 0
+    sp = _min
+    while sp <= _max + 1e-6:
+        yield sp
+        sp += step
+        
 class WebsocketHandler(AuthenticationMixin, websocket.WebSocketHandler):
     def initialize(self, controller):
         self.controller = controller
@@ -290,6 +297,16 @@ class WebsocketHandler(AuthenticationMixin, websocket.WebSocketHandler):
         
     def open(self, *args):
         state = self.controller.get_state()
+        state.update({
+            'constants': {
+                'setpoint_off': SETPOINT_ALWAYS_OFF,
+                'setpoint_max': SETPOINT_ALWAYS_ON,
+                'setpoints': list(setpoints(settings.SETPOINT_MINMAX, settings.SETPOINT_STEP)),
+                'tolerance': settings.SETPOINT_TOLERANCE
+            },
+        })
+
+        
         self.notify(state)
         self.controller.subscribe(self)
 

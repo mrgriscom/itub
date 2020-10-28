@@ -10,7 +10,9 @@ TEMP_LOG = 'templog.sqlite'
 RELAY_PIN = 2
 RELAY_OPEN_STATE = True  # True for pin high, False for pin low
 
-SETPOINT_RANGE = .5  # keep temp within +/- this amount of setpoint
+SETPOINT_MINMAX = [35, 44]
+SETPOINT_STEP = .5
+SETPOINT_TOLERANCE = .5  # keep temp within +/- this amount of setpoint
 
 ENABLE_SECURITY = True
 LOGIN_PASSWORD = None

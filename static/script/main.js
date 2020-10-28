@@ -4,9 +4,9 @@ function UIModel() {
     this.temp = ko.observable();
     this.temp_as_of = ko.observable();
     this.heater_on = ko.observable();
-    
     this.setpoints = ko.observableArray();
-
+    this.const = null;
+    
     var model = this;
     this.setpointChanged = function(obj, event) {
         if (event.originalEvent) { // user changed
@@ -15,6 +15,23 @@ function UIModel() {
             // ignore
         }
     }
+
+    this.update = function(data) {
+        if (data.constants) {
+            model.const = data.constants;
+            model.const.setpoints.unshift(model.const.setpoint_off);
+            model.const.setpoints.push(model.const.setpoint_max);
+            model.setpoints(model.const.setpoints);
+        }
+
+        model.setpoint(data.setpoint);
+        model.temp(data.cur_temp);
+        model.heater_on(data.heater_on);
+        model.temp_as_of(data.temp_as_of);
+    }
+
+
+
     
     this.now = ko.observable(new Date());
     setInterval(function() {
@@ -38,6 +55,17 @@ function UIModel() {
     });
     
 }
+
+function format_setpoint(n) {
+    if (n == 0) {
+        return 'OFF';
+    } else if (n == 99) {
+        return 'MAX';
+    } else {
+        return n.toFixed(1) + '\xb0C';
+    }
+}
+
 
 function connect(model, mode) {
     var secure = window.location.protocol.startsWith('https');
@@ -69,25 +97,9 @@ function connect(model, mode) {
 	    console.log('receiving msg');
         var data = JSON.parse(e.data);
 	    console.log(data);
-
-        model.setpoints([0, 40, 41, 42, 99]);
-
-        model.setpoint(data.setpoint);
-        model.temp(data.cur_temp);
-        model.heater_on(data.heater_on);
-        model.temp_as_of(data.temp_as_of);
+        model.update(data);
     };
     CONN = conn;
-}
-
-function blah(e) {
-    if (e == 0) {
-        return 'OFF';
-    } else if (e == 99) {
-        return 'MAX';
-    } else {
-        return e;
-    }
 }
 
 function init() {
