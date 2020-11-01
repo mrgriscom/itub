@@ -318,6 +318,8 @@ class WebsocketHandler(AuthenticationMixin, websocket.WebSocketHandler):
                 'tolerance': settings.SETPOINT_TOLERANCE,
                 'staleness': settings.TEMP_STALENESS.total_seconds(),
                 'hist_window': settings.HISTORY_WINDOW.total_seconds(),
+                'polling': POLL_INTERVAL,
+                'server_now': str(datetime.now()),
             },
             'history': hist,
         })

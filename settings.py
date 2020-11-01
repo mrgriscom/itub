@@ -14,7 +14,7 @@ SETPOINT_MINMAX = [35, 44]
 SETPOINT_STEP = .5
 SETPOINT_TOLERANCE = .5  # keep temp within +/- this amount of setpoint
 
-HISTORY_WINDOW = timedelta(days=1)
+HISTORY_WINDOW = timedelta(hours=12)
 
 ENABLE_SECURITY = True
 LOGIN_PASSWORD = None

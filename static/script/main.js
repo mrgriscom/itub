@@ -8,6 +8,7 @@ function UIModel() {
     this.temp_tol = ko.observable();
     this.const = null;
 
+    this.chart_end = ko.observable();
     this.history = [];
     
     var model = this;
@@ -19,6 +20,19 @@ function UIModel() {
         }
     }
 
+    this.now = ko.observable(new Date());
+    setInterval(function() {
+	    model.now(new Date());
+    }, 1000);
+    this.temp_age = ko.computed(function() {
+        model.now();
+        var ts = moment(model.temp_as_of());
+        return ts.fromNow();
+    });
+    this.temp_stale = ko.computed(function() {
+        return model.temp_as_of() == null || (model.now() - new Date(model.temp_as_of())) / 1000. > model.const.staleness;
+    });
+    
     this.update = function(data) {
         if (data.constants) {
             this.const = data.constants;
@@ -37,28 +51,38 @@ function UIModel() {
             _.each(data.history, function(e) {
                 model.add_historical_point(e);
             });
+            var last_pt = this.last_temp();
+            var loaded_at = new Date(this.const.server_now);
+            if (last_pt != null && !this.data_gap(loaded_at, last_pt.x)) {
+                this.chart_end(last_pt.x);
+            } else {
+                this.chart_end(loaded_at);
+            }
         } else {
-            this.add_historical_point([this.temp_as_of(), this.temp()]);
-            this.cull_history_for_window();
+            var new_point = this.add_historical_point([this.temp_as_of(), this.temp()]);
+            if (new_point) {
+                this.chart_end(new Date(this.temp_as_of()));
+            }
         }
-        update_chart(this.history, this.const.hist_window);
     }
-
+    
     this.add_historical_point = function(e) {
         var cur = {x: new Date(e[0]), y: e[1]};
-        if (this.history.length > 0) {
-            var prev = this.history.slice(-1)[0];
+        var prev = this.last_temp();
+        if (prev != null) {
+            if (cur.x - prev.x == 0) {
+                // same point; do nothing and exit
+                return false;
+            }
             if ((cur.x - prev.x) / 1000. > this.const.staleness) {
                 this.history.push(undefined);
             }
         }
         this.history.push(cur);
+        return true;
     }
 
-    this.cull_history_for_window = function() {
-        var end = this.history.slice(-1)[0].x;
-        var start = new Date(end - this.const.hist_window * 1000);
-        
+    this.cull_history_for_window = function(start) {
         while (this.history.length > 0) {
             var first = this.history[0];
             if (first !== undefined && first.x > start) {
@@ -67,19 +91,44 @@ function UIModel() {
             this.history.shift();
         }
     }
+
+    this.update_chart = function(end) {
+        var start = new Date(end - this.const.hist_window * 1000);
+        this.cull_history_for_window(start);
+        
+        var chart = new Chartist.Line('.ct-chart', {series: [{data: this.history}]}, {
+            showPoint: false,
+            showLine: true,
+            axisX: {
+                type: Chartist.FixedScaleAxis,
+                // convert high/low from date back to int
+                high: end-0,
+                low: start-0,
+                divisor: 6,
+                labelInterpolationFnc: function(value) {
+                    return moment(value).format('HH:mm');
+                },
+            },
+        });
+    }
+
+    // re-render chart when window 'end' changes
+    this.chart_end.subscribe(function() {
+        model.update_chart(model.chart_end());
+    });
+    this.now.subscribe(function() {
+        if (model.data_gap(model.now(), model.chart_end())) {
+            model.chart_end(model.now());
+        }
+    });
+
+    this.data_gap = function(now, last) {
+        return now - last > 2.5 * this.const.polling * 1000;        
+    }
+    this.last_temp = function() {
+        return this.history.length > 0 ? this.history.slice(-1)[0] : null;
+    }
     
-    this.now = ko.observable(new Date());
-    setInterval(function() {
-	    model.now(new Date());
-    }, 1000);
-    this.temp_age = ko.computed(function() {
-        model.now();
-        var ts = moment(model.temp_as_of());
-        return ts.fromNow();
-    });
-    this.temp_stale = ko.computed(function() {
-        return model.temp_as_of() == null || (model.now() - new Date(model.temp_as_of())) / 1000. > model.const.staleness;
-    });
 }
 
 function format_setpoint(n) {
@@ -92,25 +141,6 @@ function format_setpoint(n) {
     }
 }
 
-function update_chart(data, window) {
-    var end = data.slice(-1)[0].x;
-    var start = new Date(end - window * 1000);
-    
-    var chart = new Chartist.Line('.ct-chart', {series: [{data: data}]}, {
-        showPoint: false,
-        showLine: true,
-        axisX: {
-            type: Chartist.FixedScaleAxis,
-            // convert high/low from date back to int
-            high: end-0,
-            low: start-0,
-            divisor: 8,
-            labelInterpolationFnc: function(value) {
-                return moment(value).format('HH:mm');
-            },
-        },
-    });
-}
 
 function connect(model, mode) {
     var secure = window.location.protocol.startsWith('https');
